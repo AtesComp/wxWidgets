@@ -533,6 +533,8 @@ public:
 #endif // CAN_SAVE_FILES
     void OnClear(wxCommandEvent& event);
 
+    void OnSearch(wxCommandEvent& event);
+
     // do show the message in the text control
     void ShowLogMessage(const wxString& message)
     {
@@ -568,6 +570,10 @@ wxBEGIN_EVENT_TABLE(wxLogFrame, wxFrame)
     EVT_MENU(Menu_Clear, wxLogFrame::OnClear)
 
     EVT_CLOSE(wxLogFrame::OnCloseWindow)
+
+    EVT_SEARCH(wxID_ANY, wxLogFrame::OnSearch)
+    EVT_SEARCH_CANCEL(wxID_ANY, wxLogFrame::OnSearch)
+
 wxEND_EVENT_TABLE()
 
 wxLogFrame::wxLogFrame(wxWindow *pParent, wxLogWindow *log, const wxString& szTitle)
@@ -667,6 +673,34 @@ void wxLogFrame::OnSave(wxCommandEvent& WXUNUSED(event))
 void wxLogFrame::OnClear(wxCommandEvent& WXUNUSED(event))
 {
     m_pTextCtrl->Clear();
+}
+
+void wxLogFrame::OnSearch(wxCommandEvent & event)
+{
+    wxTextAttr attr;
+    // Clear any highlights...
+    m_textCtrl->GetDefaultStyle(attr);
+    this->m_pTextCtrl->SetStyle(0, this->m_pTextCtrl->GetLastPosition(), attr);
+
+    if ( event.GetEventType() == wxEVT_SEARCH_CANCEL ) return; // ...nothing to highlight
+    wxString strToHighlight = event.GetString();
+    if (strToHighlight.IsEmpty) return; // ...nothing to highlight
+
+    wxString & strText = this->m_pTextCtrl->GetValue();
+    size_t uiStart = 0, uiEnd = 0;
+    attr.SetTextColour( attr.GetTextColour() != *wxRED ? *wxRED | *wxBLUE );
+    attr.SetBackgroundColour( attr.GetBackgroundColour() != *wxLIGHT_GREY ? *wxLIGHT_GREY | *wxDARK_GREY );
+    
+    while (true) {
+        // Find start of matching search text and set end accordingly...
+        uiStart = strText.find(strToHighlight, uiStart);
+        if (uiStart == wxString::npos) break;
+        uiEnd = uiStart + strToHighlight.length();
+    
+        // Highlight the text...
+        m_pTextCtrl->SetStyle(uiStart, uiEnd, attr);
+        uiStart = uiEnd;
+    }
 }
 
 wxLogFrame::~wxLogFrame()
