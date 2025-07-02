@@ -469,6 +469,50 @@ void wxLogGui::DoLogRecord(wxLogLevel level,
 
 #if wxUSE_LOGWINDOW
 
+// log search ctrl class
+// -----------------------
+class wxLogSearchCtrl : public wxTopLevelWindow
+{
+public:
+    // ctor & dtor
+    wxLogSearchWindow(wxFrame *pParent);
+    virtual ~wxLogSearchWindow();
+
+private:
+    wxFrame * m_pParent;
+    wxSearchCtrl m_pSearchCtrl;
+
+    void OnSize(wxSizeEvent & event);
+}
+
+wxLogSearchCtrl::wxLogSearchCtrl(wxFrame * pParent) :
+    wxTopLevelWindow(pParent, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxFRAME_FLOAT_ON_PARENT | wxBORDER_NONE),
+    m_pParent(pParent)
+{
+    this->m_pSearchCtrl = new wxSearchCtrl(this, wxID_ANY, "Search...", wxDefaultPosition, wxSize(250,25));
+    this.Fit();
+}
+
+void wxLogSearchCtrl::OnSize(wxSizeEvent & event)
+{
+    wxSize & sizeCtrl = this->GetSize();
+    int iTitleBarHeight = wxSystemSettings::GetMetric( wxSYS_CAPTION_Y, this->GetParent() );
+    int iMenuBarHeight = 0;
+    wxMenuBar * menuBar = this->GetParent()->GetMenuBar();
+    if (menuBar) iMenuBarHeight = menuBar->GetSize().GetHeight();
+
+    int iLeft = this->GetParent()->GetSize().GetWidth() - 10 - sizeCtrl.GetWidth();
+    int iTop = titleBarHeight + menuBarHeight - sizeCtrl.GetHeight();
+
+    this->SetPosition( this->GetParent()->GetScreenPosition() + wxSize(iLeft, iTop) );
+    event.Skip();
+}
+
+BEGIN_EVENT_TABLE(wxLogSearchCtrl, wxFrame)
+    EVT_SIZE(wxLogSearchCtrl::OnSize)
+    EVT_MOVE(wxLogSearchCtrl::OnSize)
+END_EVENT_TABLE()
+
 // log frame class
 // ---------------
 class wxLogFrame : public wxFrame
@@ -507,6 +551,7 @@ private:
     // common part of OnClose() and OnCloseWindow()
     void DoClose();
 
+    wxLogSearchCtrl * m_pLogSearchCtrl;
     wxTextCtrl  *m_pTextCtrl;
     wxLogWindow *m_log;
 
@@ -531,16 +576,6 @@ wxLogFrame::wxLogFrame(wxWindow *pParent, wxLogWindow *log, const wxString& szTi
     // We don't want our parent frame getting any events from us.
     SetExtraStyle(GetExtraStyle() | wxWS_EX_BLOCK_EVENTS);
 
-    m_log = log;
-
-    m_pTextCtrl = new wxTextCtrl(this, wxID_ANY, wxEmptyString, wxDefaultPosition,
-            wxDefaultSize,
-            wxTE_MULTILINE  |
-            wxHSCROLL       |
-            // needed for Win32 to avoid 65Kb limit
-            wxTE_RICH       |
-            wxTE_READONLY);
-
 #if wxUSE_MENUS
     // create menu
     wxMenuBar *pMenuBar = new wxMenuBar;
@@ -555,10 +590,24 @@ wxLogFrame::wxLogFrame(wxWindow *pParent, wxLogWindow *log, const wxString& szTi
     SetMenuBar(pMenuBar);
 #endif // wxUSE_MENUS
 
+    this->m_pLogSearchCtrl = new wxLogSearchCtrl(this);
+
+    this->m_log = log;
+
+    this->m_pTextCtrl = new wxTextCtrl(this, wxID_ANY, wxEmptyString, wxDefaultPosition,
+            wxDefaultSize,
+            wxTE_MULTILINE  |
+            wxHSCROLL       |
+            // needed for Win32 to avoid 65Kb limit
+            wxTE_RICH2      |
+            wxTE_READONLY);
+
 #if wxUSE_STATUSBAR
     // status bar for menu prompts
     CreateStatusBar();
 #endif // wxUSE_STATUSBAR
+
+    SendSizeEvent();
 }
 
 void wxLogFrame::DoClose()
